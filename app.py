@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, render_template, request, flash, redirect, session, g
+from flask import Flask, render_template, request, flash, redirect, session, g, abort
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
@@ -303,14 +303,30 @@ def messages_destroy(message_id):
 
 @app.route('/users/add_like/<int:message_id>',methods=["POST"])
 def like(message_id):
-    if g.user:
-        new_like = Likes(user_id=g.user.id ,message_id=message_id)
-        db.session.add(new_like)
-        db.session.commit()
-        return redirect('/')
-    else:
+    if not g.user:
         flash("Access unauthorized.", "danger")
         return('/login')
+
+    liked_message = Message.query.get_or_404(message_id)
+    if g.user.id == liked_message.user_id:
+        return abort(403)
+
+    if g.user:
+        all_likes = [x.id for x in g.user.likes]
+        if message_id in all_likes:
+            like=Likes.query.filter((Likes.message_id==message_id) & (Likes.user_id==g.user.id)).one()
+            db.session.delete(like)
+            db.session.commit()
+            flash("unliked", "danger")
+            return redirect('/')
+        else:
+            flash("Liked", "success")
+            new_like = Likes(user_id=g.user.id ,message_id=message_id)
+            db.session.add(new_like)
+            db.session.commit()
+            return redirect('/')
+    
+
 
 @app.route('/users/<int:user_id>/likes')
 def liked(user_id):
@@ -338,8 +354,8 @@ def homepage():
     if g.user:
         followers = [x.user_being_followed_id for x in Follows.query.filter_by(user_following_id=g.user.id).all()]
         messages = (Message.query.filter((Message.user_id.in_(followers) | (Message.user_id==g.user.id))).order_by(Message.timestamp.desc()).limit(100).all())
-
-        return render_template('home.html', messages=messages,likes=user.likes)   
+        likes = [message.id for message in g.user.likes]
+        return render_template('home.html', messages=messages,likes=likes)   
 
     else:
         return render_template('home-anon.html')
