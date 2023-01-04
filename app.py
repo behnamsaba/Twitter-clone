@@ -214,8 +214,38 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
+    if g.user:
+        # print("*****************************")
+        # print(g.user)
+        # return redirect('/')
+        # user=User.query.get()
+        form=UserAddForm(obj=g.user)
+        if form.validate_on_submit():
+            password=form.password.data
+            user=User.authenticate(g.user.username,password)
+            if user:
 
-    # IMPLEMENT THIS
+                g.user.username=form.username.data
+                g.user.email=form.email.data
+                g.user.image_url=form.image_url.data
+                g.user.header_image_url=form.header_image_url.data
+                db.session.commit()
+                flash("Change Successfully", "success")
+                return redirect('/')
+            else:
+                flash("Incorrect Password - Try Again", "danger")
+                return redirect('/users/profile')
+            
+        return render_template('/users/edit.html',form=form)
+    else:
+        return redirect('/login')
+
+@app.route("/test")
+def test():
+    print("******************************************")
+    print(g.user.username)
+    print("******************************")
+    return ("salam")
 
 
 @app.route('/users/delete', methods=["POST"])
