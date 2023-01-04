@@ -337,12 +337,6 @@ def liked(user_id):
 ##############################################################################
 # Homepage and error pages
 
-@app.route("/test")
-def masalan():
-    print(g)
-    raise
-    return ('when')
-
 @app.route('/')
 def homepage():
     """Show homepage:
