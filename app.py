@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm
-from models import db, connect_db, User, Message, Follows
+from models import db, connect_db, User, Message, Follows, Likes
 
 CURR_USER_KEY = "curr_user"
 
@@ -163,7 +163,7 @@ def show_following(user_id):
 
     if not g.user:
         flash("Access unauthorized.", "danger")
-        return redirect("/")
+        return redirect("/")    
 
     user = User.query.get_or_404(user_id)
     return render_template('users/following.html', user=user)
@@ -215,10 +215,6 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
     if g.user:
-        # print("*****************************")
-        # print(g.user)
-        # return redirect('/')
-        # user=User.query.get()
         form=UserAddForm(obj=g.user)
         if form.validate_on_submit():
             password=form.password.data
@@ -239,13 +235,6 @@ def profile():
         return render_template('/users/edit.html',form=form)
     else:
         return redirect('/login')
-
-@app.route("/test")
-def test():
-    print("******************************************")
-    print(g.user.id)
-    print("******************************")
-    return ("salam")
 
 
 @app.route('/users/delete', methods=["POST"])
@@ -312,10 +301,31 @@ def messages_destroy(message_id):
 
     return redirect(f"/users/{g.user.id}")
 
+@app.route('/users/add_like/<int:message_id>',methods=["POST"])
+def like(message_id):
+    if g.user:
+        new_like = Likes(user_id=g.user.id ,message_id=message_id)
+        db.session.add(new_like)
+        db.session.commit()
+        return redirect('/')
+    else:
+        flash("Access unauthorized.", "danger")
+        return('/login')
+
+@app.route('/users/<int:user_id>/likes')
+def liked(user_id):
+    user = User.query.get_or_404(user_id)
+    return render_template('users/fave.html', user=user, likes=user.likes)
+
 
 ##############################################################################
 # Homepage and error pages
 
+@app.route("/test")
+def masalan():
+    print(g)
+    raise
+    return ('when')
 
 @app.route('/')
 def homepage():
@@ -329,7 +339,7 @@ def homepage():
         followers = [x.user_being_followed_id for x in Follows.query.filter_by(user_following_id=g.user.id).all()]
         messages = (Message.query.filter((Message.user_id.in_(followers) | (Message.user_id==g.user.id))).order_by(Message.timestamp.desc()).limit(100).all())
 
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=messages,likes=user.likes)   
 
     else:
         return render_template('home-anon.html')
